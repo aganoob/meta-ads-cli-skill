@@ -33,6 +33,15 @@ If you know the skill directory path, the bundled check script runs a more detai
 python3 /path/to/meta-ads-cli/scripts/check_meta_ads_cli.py
 ```
 
+For read-only account audits and batch reporting, prefer the bundled audit script instead of hand-written shell loops:
+
+```bash
+python3 /path/to/meta-ads-cli/scripts/meta_ads_audit.py \
+  --accounts all \
+  --last-days 30 \
+  --output reports/meta_ads_audit.json
+```
+
 If `meta` is missing, tell the user to install Meta Ads CLI from Meta's current official documentation. The public beta has changed quickly, so verify install/auth commands against the docs before giving exact setup instructions.
 
 When `meta` exists, use the command templates in `references/command-patterns.md` directly for known tasks. Only run `--help` for commands or flags not covered by those templates:
@@ -48,7 +57,7 @@ Use CLI help as the source of truth for exact flag names in the local installati
 
 1. Identify the user's intent: report, audit, create, update, pause, activate, catalog, or dataset/pixel diagnostics.
 2. Determine account context. Use account-listing/config commands or the user's provided `act_...` account ID.
-3. For reporting and audits, use read-only commands and request JSON output when available.
+3. For reporting and audits, use `META_ADS_READ_ONLY=1` and prefer `scripts/meta_ads_audit.py` for batch reports; it batches reads, caches stable entities, redacts output, reconciles entity totals, and emits normalized JSON tables.
 4. For writes, use the Plan/Preview/Apply pattern: discover current state, draft exact commands, summarize impact, get explicit approval, execute, and verify.
 5. Run commands one at a time, inspect output, and stop on non-zero exit status.
 6. Summarize results with entity IDs, statuses, changed fields, and any follow-up action the user must review in Ads Manager.
@@ -86,7 +95,20 @@ Use `references/command-patterns.md` for current command patterns, safety notes,
 
 ### Reporting
 
-Prefer insights commands with bounded dates and explicit fields. Use the global `--output json` flag (before `ads`) for machine-readable output:
+Prefer the bundled audit helper for account-level reporting, creative audits, wasted-spend reviews, and any request that needs campaign/ad set/ad reconciliation:
+
+```bash
+python3 /path/to/meta-ads-cli/scripts/meta_ads_audit.py \
+  --accounts act_123456789 \
+  --since 2026-04-06 \
+  --until 2026-05-05 \
+  --preset ua-creative-audit \
+  --output reports/meta_ads_audit.json
+```
+
+The audit helper is read-only, wraps CLI output with redaction, avoids manual TSV parsing, caches stable entity/creative payloads, downloads creative thumbnails once, and warns when account/campaign/ad set totals do not reconcile to listed ads.
+
+For narrow one-off checks, use insights commands with bounded dates and explicit fields. Use the global `--output json` flag (before `ads`) for machine-readable output:
 
 ```bash
 AD_ACCOUNT_ID=act_123456789 meta --output json ads insights get --campaign_id CAMPAIGN_ID --date-preset last_7d --fields spend,impressions,clicks,ctr,cpc,reach,actions

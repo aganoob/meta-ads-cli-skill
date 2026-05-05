@@ -22,6 +22,7 @@ REQUIRED_FILES = [
     "meta-ads-cli/agents/openai.yaml",
     "meta-ads-cli/references/command-patterns.md",
     "meta-ads-cli/scripts/check_meta_ads_cli.py",
+    "meta-ads-cli/scripts/meta_ads_audit.py",
     ".github/workflows/ci.yml",
     ".github/pull_request_template.md",
 ]
@@ -29,7 +30,9 @@ REQUIRED_FILES = [
 PYTHON_FILES = [
     "scripts/validate_repo.py",
     "meta-ads-cli/scripts/check_meta_ads_cli.py",
+    "meta-ads-cli/scripts/meta_ads_audit.py",
     "tests/test_check_meta_ads_cli.py",
+    "tests/test_meta_ads_audit.py",
 ]
 
 

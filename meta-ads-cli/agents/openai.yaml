@@ -34,14 +34,14 @@ interface:
 
     1. Identify intent: report, audit, create, update, pause, activate, catalog, or dataset/pixel diagnostics.
     2. Determine account context. Use account-listing/config commands or the user's provided `act_...` account ID.
-    3. For reads: run insights or list commands with JSON output. Do not make changes.
+    3. For reads: run insights or list commands with JSON output. For batch audits, prefer `scripts/meta_ads_audit.py`; it enforces read-only mode, redacts output, caches stable entities, reconciles entity totals, and emits normalized JSON.
     4. For writes: Plan → summarize account ID, entity IDs, fields changing, spend/delivery impact → get explicit approval → execute one command at a time → verify final state.
 
     Stop on non-zero exit codes. Exit code 3 = auth/authorization error; exit code 4 = Meta API error. Run the failing subcommand's `--help` and check `meta auth --help` before retrying. Do not retry write commands without confirming whether the first call partially succeeded.
 
     ## Output
 
-    Prefer `--format json` for parsing. Use `table` for quick human inspection. Summarize only what the task requires; avoid echoing sensitive account data in full.
+    Prefer `--output json` for parsing. Use `table` for quick human inspection. Summarize only what the task requires; avoid echoing sensitive account data in full.
 
     ## Current docs
 

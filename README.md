@@ -8,9 +8,9 @@ read-only reporting, campaign/ad set/ad/ad creative operations, catalog work,
 dataset/pixel diagnostics, and cautious automation.
 
 The repository is intentionally lightweight. It packages skill instructions,
-agent prompt content, command patterns, and a local diagnostic script. CI checks
-the skill and tests the diagnostic script without requiring Meta's Ads CLI to be
-installed.
+agent prompt content, command patterns, a local diagnostic script, and a
+read-only batch audit helper. CI checks the skill and tests the scripts without
+requiring Meta's Ads CLI to be installed.
 
 ## Install the Skill
 
@@ -95,6 +95,21 @@ The diagnostic checks:
 - `meta --help` works.
 - `meta ads --help` works.
 
+For read-only reporting, run the bundled audit helper:
+
+```bash
+python3 meta-ads-cli/scripts/meta_ads_audit.py \
+  --accounts all \
+  --last-days 30 \
+  --preset ua-creative-audit \
+  --output reports/meta_ads_audit.json
+```
+
+The audit helper enforces `META_ADS_READ_ONLY=1`, redacts CLI output, caches
+stable entity and creative payloads under `.cache/meta-ads/`, keeps insights
+fresh, downloads creative thumbnails once, reconciles account/campaign/ad set/ad
+totals, and writes normalized JSON report tables.
+
 ## Use the Skill
 
 Once installed, ask Claude Code or Codex for Meta Ads work in normal language.
@@ -115,6 +130,11 @@ List the Meta ad accounts I can access and show the account IDs only.
 ```text
 Pull last 7 days campaign insights for account act_... and summarize spend,
 clicks, CTR, and conversions.
+```
+
+```text
+Run a 30-day Meta Ads creative audit for all accessible accounts and write a
+JSON report.
 ```
 
 ```text
@@ -152,10 +172,12 @@ meta-ads-cli/
   agents/openai.yaml               OpenAI agent prompt surface
   references/command-patterns.md   Command patterns and workflow templates
   scripts/check_meta_ads_cli.py    Local Meta Ads CLI environment diagnostic
+  scripts/meta_ads_audit.py        Read-only batch audit/report helper
 scripts/
   validate_repo.py                 Repository and skill validation checks
 tests/
   test_check_meta_ads_cli.py       Unit tests for the diagnostic script
+  test_meta_ads_audit.py           Unit tests for the audit helper
 ```
 
 ## Development

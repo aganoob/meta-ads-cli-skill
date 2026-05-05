@@ -47,6 +47,7 @@ Example: count purchases from an insights response:
 ## Safety Defaults
 
 - Run read-only commands first.
+- For reporting and audit tasks, set `META_ADS_READ_ONLY=1` or use `scripts/meta_ads_audit.py`, which enforces that mode.
 - Use `meta --output json ads ...` (global flag before `ads`) when parsing output.
 - Use `--no-input` only when the user already approved the exact operation.
 - Use `--force` only when the user understands what prompt or safety confirmation is being bypassed.
@@ -95,7 +96,31 @@ Before applying a spec, validate required IDs and fetch existing entities that m
 
 Use this for "check my account", "why is performance down", "audit my tracking", and similar read-only requests.
 
-Default flow:
+Default flow for batch reporting:
+
+```bash
+python3 meta-ads-cli/scripts/meta_ads_audit.py \
+  --accounts all \
+  --last-days 30 \
+  --preset ua-creative-audit \
+  --output reports/meta_ads_audit.json
+```
+
+For an explicit inclusive window:
+
+```bash
+python3 meta-ads-cli/scripts/meta_ads_audit.py \
+  --accounts act_123456789 \
+  --since 2026-04-06 \
+  --until 2026-05-05 \
+  --output reports/meta_ads_audit.json
+```
+
+`--last-days 30` includes today. For example, when today is `2026-05-05`, the 30-day inclusive window is `2026-04-06` through `2026-05-05`. Warn if a user supplies a 31-day inclusive range such as `2026-04-05` through `2026-05-05`.
+
+The audit helper emits normalized JSON tables for accounts, campaigns, ad sets, ads, creatives, account/campaign/adset/ad insights, country/platform breakdowns, downloaded assets, warnings, and preset reports. It checks `meta ads insights get --help` once; if `--level` is supported, it uses batch level calls such as `--level ad`, otherwise it falls back to bounded per-entity calls with retry/backoff.
+
+Use this manual flow only for small one-off reports or when the helper cannot express the request:
 
 1. Confirm account ID and date window.
 2. List active campaigns and relevant ad sets/ads.
@@ -111,6 +136,58 @@ Report format:
 - Opportunities: concrete next actions.
 - Tracking/catalog notes: dataset or catalog health if checked.
 - Caveats: attribution windows, currency, incomplete current-day data, and unsupported fields.
+
+### Audit Cache Policy
+
+The audit helper caches stable reads under:
+
+```text
+.cache/meta-ads/{account_id}/{entity_type}/{entity_id}.json
+```
+
+Each file wraps data with `_cache` metadata: `schema_version`, `cached_at`, `account_id`, `entity_type`, `entity_id`, `ttl_seconds`, `source_command`, and `redacted`.
+
+Default TTLs:
+
+| Entity | TTL |
+|---|---:|
+| ad accounts | 24h |
+| campaigns, ad sets, ads | 6h |
+| creatives | 7d |
+| thumbnails/assets | 30d |
+| insights | always fresh |
+
+Refresh the cache when a file is missing, corrupt, expired, has mismatched metadata/schema, or when the user passes `--refresh-entities` or `--refresh-creatives`. Retain stale cache files by default for inspection, but do not trust them for fresh reads. Use `--prune-cache-days N` to delete old cache files.
+
+### Reconciliation Rules
+
+For audits, compare conversions through the hierarchy:
+
+```text
+account total -> campaign totals -> ad set totals -> ad totals
+```
+
+If a parent level has more purchases than the child rows explain, emit a warning such as:
+
+```text
+2 purchases are visible at ad set/campaign level but not traceable to listed ads. Possible deleted/hidden ads, attribution delay, or API visibility gap.
+```
+
+Do not hide these gaps in the final report. They are usually high-signal caveats for deleted/hidden ads, attribution timing, or API visibility limits.
+
+### Parsing Rules
+
+Use JSON end to end for entity and insights processing. Entity names can contain spaces, pipes, tabs, and punctuation, so do not manually parse TSV rows by splitting on whitespace or `|`.
+
+If shell looping is unavoidable, encode each JSON row before passing it through the shell:
+
+```bash
+jq -r '.data[] | @base64' report.json | while read -r row; do
+  python3 -c 'import base64,json,sys; print(json.loads(base64.b64decode(sys.argv[1]))["id"])' "$row"
+done
+```
+
+Prefer Python or `jq` JSON parsing over ad hoc shell text parsing for all batch reports.
 
 ## Entity State Snapshot
 
