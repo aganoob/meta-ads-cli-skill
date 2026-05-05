@@ -2,10 +2,52 @@
 
 Use this reference after `SKILL.md` when planning or executing Meta Ads CLI work. Prefer the installed CLI help over examples here when they disagree.
 
+## Known CLI Quirks
+
+These are confirmed behaviors that cause wasted calls if you guess wrong:
+
+**`--output` is a global flag — place it before `ads`:**
+```bash
+# correct
+meta --output json ads campaign list
+meta --output json ads insights get ...
+
+# wrong — fails silently or errors
+meta ads campaign list --output json
+meta ads campaign list -o json
+```
+
+**Scope insights by env var, not flag:**
+`insights get` and similar commands do not accept `--ad-account-id` as a flag. Use the `AD_ACCOUNT_ID` environment variable:
+```bash
+AD_ACCOUNT_ID=act_123456789 meta --output json ads insights get --date-preset last_7d --fields spend,impressions,clicks
+```
+The `--ad-account-id` top-level flag also does not work for most subcommands; always prefer the env var.
+
+**No top-level `conversions` field — use `actions`:**
+`--fields conversions` returns no data. Conversions live in `actions[]` as typed entries. Request `--fields actions` and filter by `action_type`:
+
+| Goal | `action_type` value |
+|---|---|
+| Purchase / sale | `purchase` |
+| Lead form | `lead` |
+| Registration | `complete_registration` |
+| Add to cart | `add_to_cart` |
+| View content | `view_content` |
+| App install | `mobile_app_install` |
+| Custom event | `other` or event name |
+
+Example: count purchases from an insights response:
+```bash
+# parse actions[] from JSON and filter action_type == purchase
+```
+
+**Skip `--help` for commands in the cheat sheet below.** Only run `--help` for commands or flags not covered by the templates in this file.
+
 ## Safety Defaults
 
 - Run read-only commands first.
-- Use `--format json` or the local equivalent when parsing output.
+- Use `meta --output json ads ...` (global flag before `ads`) when parsing output.
 - Use `--no-input` only when the user already approved the exact operation.
 - Use `--force` only when the user understands what prompt or safety confirmation is being bypassed.
 - Keep new campaigns, ad sets, ads, and creatives paused unless the user explicitly asks otherwise.
@@ -139,13 +181,42 @@ Common ownership boundaries:
 - Catalogs contain products and product sets populated by feeds.
 - Datasets/pixels provide event signals to accounts, catalogs, and optimization workflows.
 
+## Common Task Templates
+
+These are copy-paste ready for the most frequent tasks. Use them directly without running `--help` first.
+
+**List ad accounts:**
+```bash
+meta --output json ads adaccount list
+```
+
+**List campaigns for an account:**
+```bash
+AD_ACCOUNT_ID=act_123456789 meta --output json ads campaign list
+```
+
+**7-day performance insights for a campaign:**
+```bash
+meta --output json ads insights get --campaign_id CAMPAIGN_ID --date-preset last_7d --fields spend,impressions,clicks,ctr,cpc,reach,actions
+```
+
+**7-day account-level insights (all campaigns):**
+```bash
+AD_ACCOUNT_ID=act_123456789 meta --output json ads insights get --date-preset last_7d --fields spend,impressions,clicks,ctr,cpc,reach,actions
+```
+
+**List active ad sets for a campaign:**
+```bash
+meta --output json ads adset list --campaign_id CAMPAIGN_ID
+```
+
 ## Reporting And Insights
 
 Common pattern:
 
 ```bash
-meta ads campaign list --format json
-meta ads insights get --campaign_id CAMPAIGN_ID --date-preset last_7d --fields impressions,spend,clicks,ctr,conversions --format json
+AD_ACCOUNT_ID=act_123456789 meta --output json ads campaign list
+AD_ACCOUNT_ID=act_123456789 meta --output json ads insights get --campaign_id CAMPAIGN_ID --date-preset last_7d --fields spend,impressions,clicks,ctr,cpc,reach,actions
 ```
 
 Use bounded date windows such as `yesterday`, `last_7d`, `last_30d`, or `this_month` when supported by the installed CLI. Ask the user before running wide historical queries on large accounts.

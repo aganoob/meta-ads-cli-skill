@@ -35,16 +35,14 @@ python3 /path/to/meta-ads-cli/scripts/check_meta_ads_cli.py
 
 If `meta` is missing, tell the user to install Meta Ads CLI from Meta's current official documentation. The public beta has changed quickly, so verify install/auth commands against the docs before giving exact setup instructions.
 
-When `meta` exists, inspect the local command surface before running unfamiliar commands:
+When `meta` exists, use the command templates in `references/command-patterns.md` directly for known tasks. Only run `--help` for commands or flags not covered by those templates:
 
 ```bash
-meta --help
-meta ads --help
 meta ads campaign --help
 meta ads insights --help
 ```
 
-Use CLI help as the source of truth for exact flag names in the local installation.
+Use CLI help as the source of truth for exact flag names in the local installation, but skip it when a working template already exists.
 
 ## Workflow
 
@@ -88,13 +86,17 @@ Use `references/command-patterns.md` for current command patterns, safety notes,
 
 ### Reporting
 
-Prefer insights commands with bounded dates and explicit fields. Use JSON when parsing programmatically:
+Prefer insights commands with bounded dates and explicit fields. Use the global `--output json` flag (before `ads`) for machine-readable output:
 
 ```bash
-meta ads insights get --campaign_id CAMPAIGN_ID --date-preset last_7d --fields impressions,spend,clicks,conversions --format json
+AD_ACCOUNT_ID=act_123456789 meta --output json ads insights get --campaign_id CAMPAIGN_ID --date-preset last_7d --fields spend,impressions,clicks,ctr,cpc,reach,actions
 ```
 
-Check `meta ads insights get --help` first; beta versions may expose `--output json` instead of `--format json`, or may use account/ad-set/ad-level filters differently.
+Key rules:
+- `--output json` is a global flag and must come before `ads` — not at the end of the command.
+- Account scope is set via the `AD_ACCOUNT_ID` env var, not a CLI flag.
+- There is no top-level `conversions` field. Request `actions` and filter by `action_type` (e.g. `purchase`, `lead`, `complete_registration`). See the Known CLI Quirks section in `references/command-patterns.md` for the full mapping.
+- See `references/command-patterns.md` for copy-paste templates for common reporting tasks.
 
 ### Campaign Management
 
