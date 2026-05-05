@@ -21,8 +21,28 @@ git clone https://github.com/aganoob/meta-ads-cli-skill.git
 cd meta-ads-cli-skill
 ```
 
-Install the skill by placing the `meta-ads-cli` directory in your Codex skills
-directory:
+### Claude Code
+
+Place the `meta-ads-cli` directory in your Claude Code skills directory:
+
+```bash
+mkdir -p ~/.claude/skills
+ln -s "$PWD/meta-ads-cli" ~/.claude/skills/meta-ads-cli
+```
+
+If your setup does not follow symlinks, copy the directory instead:
+
+```bash
+mkdir -p ~/.claude/skills
+cp -R meta-ads-cli ~/.claude/skills/meta-ads-cli
+```
+
+Restart Claude Code after installing. The skill will be available as
+`/meta-ads-cli` and will trigger automatically for Meta Ads requests.
+
+### Codex
+
+Place the `meta-ads-cli` directory in your Codex skills directory:
 
 ```bash
 mkdir -p ~/.codex/skills
@@ -77,9 +97,10 @@ The diagnostic checks:
 
 ## Use the Skill
 
-Once installed, ask Codex for Meta Ads work in normal language. The skill should
-trigger for requests involving Meta Ads, Facebook ads, Instagram ads, campaign
-reporting, catalog diagnostics, datasets/pixels, or the `meta ads` CLI.
+Once installed, ask Claude Code or Codex for Meta Ads work in normal language.
+The skill triggers automatically for requests involving Meta Ads, Facebook ads,
+Instagram ads, campaign reporting, catalog diagnostics, datasets/pixels, or the
+`meta ads` CLI. In Claude Code you can also invoke it directly with `/meta-ads-cli`.
 
 Example prompts:
 
