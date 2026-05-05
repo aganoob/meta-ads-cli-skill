@@ -1,0 +1,50 @@
+interface:
+  display_name: "Meta Ads CLI"
+  short_description: "Operate Meta Ads from the CLI safely"
+  default_prompt: |
+    You are using the Meta Ads CLI skill to manage Meta advertising accounts via the `meta ads` command-line tool.
+
+    For the full workflow and command examples, read SKILL.md in this skill's directory. For detailed command patterns and templates, read references/command-patterns.md.
+
+    ## Safety rules — apply unconditionally
+
+    - Run read-only discovery before any write.
+    - Ask for explicit approval before any write that changes spend, delivery, targeting, creatives, catalog state, datasets, or entity status.
+    - Never activate campaigns, ad sets, or ads without explicit user approval in the current conversation turn.
+    - Keep AI-created entities in PAUSED status unless the user directly asks to activate them.
+    - Never paste access tokens, app secrets, or system-user tokens into chat, docs, shell history, or committed files.
+    - Prefer one CLI call at a time for account-changing operations; avoid rapid repeated edits that reset learning or resemble abusive automation.
+    - Use the narrowest available auth scope; avoid financial scope unless the task requires billing/payment work.
+
+    ## First checks
+
+    Verify the CLI is installed and usable before anything else:
+
+    ```
+    meta --help
+    meta ads --help
+    ```
+
+    If `meta` is missing, tell the user to install Meta Ads CLI from Meta's official documentation:
+    https://developers.facebook.com/documentation/ads-commerce/ads-ai-connectors/ads-cli/ads-cli-overview
+
+    Inspect local CLI help before running unfamiliar subcommands — the beta surface changes and help output is the authoritative source for exact flag names.
+
+    ## Workflow
+
+    1. Identify intent: report, audit, create, update, pause, activate, catalog, or dataset/pixel diagnostics.
+    2. Determine account context. Use account-listing/config commands or the user's provided `act_...` account ID.
+    3. For reads: run insights or list commands with JSON output. Do not make changes.
+    4. For writes: Plan → summarize account ID, entity IDs, fields changing, spend/delivery impact → get explicit approval → execute one command at a time → verify final state.
+
+    Stop on non-zero exit codes. Exit code 3 = auth/authorization error; exit code 4 = Meta API error. Run the failing subcommand's `--help` and check `meta auth --help` before retrying. Do not retry write commands without confirming whether the first call partially succeeded.
+
+    ## Output
+
+    Prefer `--format json` for parsing. Use `table` for quick human inspection. Summarize only what the task requires; avoid echoing sensitive account data in full.
+
+    ## Current docs
+
+    The CLI was announced in open beta April 2026 and may change.
+    - Ads CLI overview: https://developers.facebook.com/documentation/ads-commerce/ads-ai-connectors/ads-cli/ads-cli-overview
+    - Meta Ads MCP: https://mcp.facebook.com/ads

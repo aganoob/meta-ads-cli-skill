@@ -1,0 +1,225 @@
+# Meta Ads CLI Command Patterns
+
+Use this reference after `SKILL.md` when planning or executing Meta Ads CLI work. Prefer the installed CLI help over examples here when they disagree.
+
+## Safety Defaults
+
+- Run read-only commands first.
+- Use `--format json` or the local equivalent when parsing output.
+- Use `--no-input` only when the user already approved the exact operation.
+- Use `--force` only when the user understands what prompt or safety confirmation is being bypassed.
+- Keep new campaigns, ad sets, ads, and creatives paused unless the user explicitly asks otherwise.
+- Avoid automated budget, audience, or creative edits more than once per 24 hours on the same ad set unless the user knowingly accepts learning-phase resets.
+
+## Plan/Preview/Apply
+
+Use this pattern for every write.
+
+1. Discover current state with read-only commands and local CLI help.
+2. Draft the exact command sequence without executing it.
+3. Summarize account ID, target entity IDs, fields to change, spend/delivery impact, and rollback or pause plan.
+4. Ask for explicit approval to run the drafted commands.
+5. Execute one command at a time and stop on the first error.
+6. Verify final state with a read-only fetch and summarize what changed.
+
+Approval prompt:
+
+```text
+I am ready to run these commands against account act_... . They will change FIELD on ENTITY_ID and may affect delivery/spend. Should I execute them?
+```
+
+## Spec File Pattern
+
+Use a local spec when a workflow needs review, repetition, or versioned history. Good candidates include campaign launches, weekly reports, bulk catalog updates, and repeated audit jobs.
+
+Keep specs declarative and free of secrets. Include:
+
+- Account ID, Page ID, catalog ID, dataset ID, and target entity IDs.
+- Objective, budget, schedule, targeting, destination URLs, URL parameters, creative file paths, and naming convention.
+- Output fields, date ranges, attribution notes, and report destination for reporting specs.
+- Activation policy, usually `create_paused: true`.
+
+Suggested file names:
+
+```text
+meta-ads-launch.spec.json
+meta-ads-report.spec.json
+meta-ads-catalog-update.spec.json
+```
+
+Before applying a spec, validate required IDs and fetch existing entities that match intended names.
+
+## Audit Report Pattern
+
+Use this for "check my account", "why is performance down", "audit my tracking", and similar read-only requests.
+
+Default flow:
+
+1. Confirm account ID and date window.
+2. List active campaigns and relevant ad sets/ads.
+3. Pull insights for `last_7d` and, when useful, compare with `previous_7d` or `last_30d`.
+4. Inspect dataset/pixel quality and catalog diagnostics when relevant.
+5. Rank findings by likely impact and confidence.
+6. Recommend actions without making changes unless the user asks for a follow-up write.
+
+Report format:
+
+- Scope: account, date range, entity level, and fields.
+- Findings: ranked issues with evidence.
+- Opportunities: concrete next actions.
+- Tracking/catalog notes: dataset or catalog health if checked.
+- Caveats: attribution windows, currency, incomplete current-day data, and unsupported fields.
+
+## Entity State Snapshot
+
+Use this before updates, pauses, activations, and retries.
+
+1. Fetch the target entity as JSON.
+2. Record or summarize ID, name, status, budget, objective, schedule, targeting, creative, destination URL, and updated time when available.
+3. Execute the minimal update command.
+4. Fetch the entity again.
+5. Compare before/after and report only the fields that changed.
+
+If the first update command fails or times out, fetch state before retrying. Do not assume the operation was fully rolled back.
+
+## Naming And Idempotency
+
+Use this before creates and after failed create attempts.
+
+- Search for existing entities with the intended name before creating a new one.
+- If a match exists, ask whether to reuse, update, duplicate, or create a suffixed variant.
+- Use deterministic names that encode date, offer, audience, objective, and variant where useful.
+- Include stable external IDs or source spec names in labels when the CLI supports them.
+- On retry, fetch matching entities first to avoid duplicates from a partially successful previous command.
+
+Example naming shape:
+
+```text
+2026-05-05 | Spring Sale | US Broad | Sales | V01
+```
+
+## Discovery
+
+```bash
+meta --help
+meta auth --help
+meta config --help
+meta ads --help
+meta ads campaign --help
+meta ads insights --help
+```
+
+Useful discovery prompts:
+
+- "List ad accounts I can access and show IDs only."
+- "List active campaigns for account `act_...` with objective, status, spend, and campaign ID."
+- "Show me the local CLI help for campaign creation before drafting a command."
+
+## Entity Mapping
+
+Use this mapping when translating user language into CLI work:
+
+- "Account", "ad account", "business account": resolve an `act_...` account ID before other calls.
+- "Campaign": inspect or change objective, campaign-level status, and campaign grouping.
+- "Ad set", "audience", "targeting", "budget", "schedule", "optimization": usually ad set work.
+- "Ad", "placement of a creative", "turn this ad on/off": usually ad-level work.
+- "Creative", "image", "video", "copy", "headline", "CTA", "URL": creative work, often requiring Page ID and asset path or URL.
+- "Page", "Facebook page", "Instagram identity": identity/asset discovery before creative creation.
+- "Catalog", "shop", "commerce catalog": catalog diagnostics, product sets, feeds, and product inspection.
+- "Feed", "product feed": feed status, rules, and ingestion diagnostics.
+- "Product set", "collection": subset of catalog products used by catalog ads.
+- "Pixel", "dataset", "events", "CAPI", "tracking": dataset/pixel diagnostics, connection checks, and event quality.
+
+Common ownership boundaries:
+
+- Campaigns contain ad sets.
+- Ad sets contain ads.
+- Ads reference creatives.
+- Creatives often reference a Page and destination URL.
+- Catalogs contain products and product sets populated by feeds.
+- Datasets/pixels provide event signals to accounts, catalogs, and optimization workflows.
+
+## Reporting And Insights
+
+Common pattern:
+
+```bash
+meta ads campaign list --format json
+meta ads insights get --campaign_id CAMPAIGN_ID --date-preset last_7d --fields impressions,spend,clicks,ctr,conversions --format json
+```
+
+Use bounded date windows such as `yesterday`, `last_7d`, `last_30d`, or `this_month` when supported by the installed CLI. Ask the user before running wide historical queries on large accounts.
+
+For reports, include:
+
+- Date range and account ID.
+- Entity level: account, campaign, ad set, or ad.
+- Fields requested.
+- Caveats for attribution windows, conversion definitions, currency, and incomplete current-day data.
+
+## Campaign Creation
+
+Canonical launch shape:
+
+```bash
+meta ads campaign create --name "Campaign Name" --objective OUTCOME_SALES --daily-budget 5000
+meta ads adset create CAMPAIGN_ID --name "Ad Set Name" --optimization-goal LINK_CLICKS --billing-event IMPRESSIONS --targeting-countries US
+meta ads creative create --name "Creative Name" --page-id PAGE_ID --image ./asset.jpg --body "Primary text" --title "Headline" --link-url https://example.com --call-to-action SHOP_NOW
+meta ads ad create ADSET_ID --name "Ad Name" --creative-id CREATIVE_ID
+```
+
+Before executing creation commands, confirm:
+
+- Account ID and Page ID.
+- Objective and optimization goal.
+- Budget unit and currency interpretation.
+- Targeting country/region and exclusions.
+- Destination URL and URL parameters.
+- Creative file paths or public URLs.
+- Whether the user wants drafts only or activation after review.
+
+## Updates And Status Changes
+
+Before updates, fetch the current entity state. Then propose a minimal command that changes only the requested field.
+
+Activation requires explicit current-turn approval. Use phrasing like:
+
+```text
+This will activate campaign CAMPAIGN_ID in account act_... and can begin spending. Should I run it?
+```
+
+Do not infer approval from earlier high-level goals like "launch a campaign"; ask immediately before the activation command.
+
+## Catalogs
+
+Use catalog commands for ecommerce workflows:
+
+- List catalogs.
+- Inspect catalog details and diagnostics.
+- Inspect products, product sets, feeds, and feed rules.
+- Fix only after reading diagnostics and confirming with the user.
+
+Check local help for the current names:
+
+```bash
+meta ads catalog --help
+```
+
+## Datasets And Pixels
+
+Meta may refer to pixels/event sources as datasets in this CLI surface.
+
+Useful patterns:
+
+```bash
+meta ads dataset --help
+meta ads dataset connect DATASET_ID --ad-account-id AD_ACCOUNT_ID --catalog-id CATALOG_ID
+```
+
+For diagnostics, prefer read-only dataset detail, quality, stats, and error commands before making changes.
+
+## Sources To Recheck
+
+- Meta Ads CLI overview: https://developers.facebook.com/documentation/ads-commerce/ads-ai-connectors/ads-cli/ads-cli-overview
+- Meta Ads MCP endpoint: https://mcp.facebook.com/ads
+- Meta developer launch coverage reported the CLI was announced on April 29, 2026 and designed for developers and AI agents working with Meta Marketing API.
